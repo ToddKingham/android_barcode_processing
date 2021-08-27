@@ -107,7 +107,7 @@ class MainActivity : AppCompatActivity() {
     private fun processImage(inputImage: InputImage) {
         val options = BarcodeScannerOptions.Builder()
             .setBarcodeFormats(
-                Barcode.FORMAT_ALL_FORMATS
+                Barcode.FORMAT_PDF417
             )
             .build()
         val scanner = BarcodeScanning.getClient(options)
@@ -116,10 +116,12 @@ class MainActivity : AppCompatActivity() {
             .addOnSuccessListener { barcodes ->
                 // Task completed successfully
                 // ...
+                Log.i("FOXX SUCCESS", "successfullly scanned");
             }
             .addOnFailureListener {
                 // Task failed with an exception
                 // ...
+                Log.i("FOXX FAILURE", "failed to scan");
             }
     }
 
@@ -130,6 +132,8 @@ class MainActivity : AppCompatActivity() {
 
         cameraProviderFuture.addListener(Runnable {
             // Used to bind the lifecycle of cameras to the lifecycle owner
+            Log.i("FOXX", "Camera provider future is executinig");
+
             val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
 
             // Preview
@@ -140,7 +144,7 @@ class MainActivity : AppCompatActivity() {
                 }
 
             imageCapture = ImageCapture.Builder()
-                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
                 .build()
 
             val imageAnalysis = ImageAnalysis.Builder()
