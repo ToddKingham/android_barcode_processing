@@ -3,6 +3,7 @@ package com.sosmp.camerxapp
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.util.Log
@@ -48,6 +49,7 @@ class MainActivity : AppCompatActivity() {
                 image.close()
             }
     }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -102,6 +104,26 @@ class MainActivity : AppCompatActivity() {
             })
     }
 
+    private fun processImage(inputImage: InputImage) {
+        val options = BarcodeScannerOptions.Builder()
+            .setBarcodeFormats(
+                Barcode.FORMAT_ALL_FORMATS
+            )
+            .build()
+        val scanner = BarcodeScanning.getClient(options)
+
+        scanner.process(inputImage)
+            .addOnSuccessListener { barcodes ->
+                // Task completed successfully
+                // ...
+            }
+            .addOnFailureListener {
+                // Task failed with an exception
+                // ...
+            }
+    }
+
+    @SuppressLint("UnsafeOptInUsageError")
     private fun startCamera() {
         val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
@@ -119,48 +141,30 @@ class MainActivity : AppCompatActivity() {
 
             imageCapture = ImageCapture.Builder()
                 .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-//                .setTargetResolution(Size(480,640))
                 .build()
 
-            val options = BarcodeScannerOptions.Builder()
-                .setBarcodeFormats(
-                    Barcode.FORMAT_ALL_FORMATS
-                )
+            val imageAnalysis = ImageAnalysis.Builder()
+                .setTargetResolution(Size(1280, 720))
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
-            val scanner = BarcodeScanning.getClient(options)
 
+            imageAnalysis.setAnalyzer(cameraExecutor, ImageAnalysis.Analyzer { image ->
+                val rotationDegrees = image.imageInfo.rotationDegrees;
 
+                val inputImage = InputImage.fromMediaImage(image.image, rotationDegrees);
 
-            val imageAnalyzer = ImageAnalysis.Builder()
-                .setImageQueueDepth(STRATEGY_KEEP_ONLY_LATEST)
-//                .setBackpressureStrategy(STRATEGY_KEEP_ONLY_LATEST)
-                .build()
-                .also {
-                    it.setAnalyzer(cameraExecutor, YourImageAnalyzer { image ->
-                        scanner.process(image)
-                            .addOnSuccessListener { barcodes ->
-                                Log.d("INSIDE SuccessListener", barcodes.size.toString())
-                                for (barcode in barcodes) {
-                                    Log.d("SUCCESS SUCCESS SUCCESS", barcodes.size.toString())
-                                    Log.d("RAW VALUE", barcode.rawValue)
-                                    Log.d("VALUE TYPE", barcode.valueType.toString())
+                image.close()
 
-                                }
+                processImage(inputImage);
+            })
 
-                            }
-                            .addOnFailureListener {
-//                                Log.d(TAG, "error")
-                            }
-                    })
-                }
 
             try {
                 // Unbind use cases before rebinding
                 cameraProvider.unbindAll()
 
                 // Bind use cases to camera
-                cameraProvider.bindToLifecycle(
-                    this, cameraSelector, preview, imageCapture, imageAnalyzer)
+                cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture, imageAnalysis)
 
             } catch(exc: Exception) {
                 Log.e(TAG, "Use case binding failed", exc)
@@ -170,8 +174,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
-        ContextCompat.checkSelfPermission(
-            baseContext, it) == PackageManager.PERMISSION_GRANTED
+        ContextCompat.checkSelfPermission(baseContext, it) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun getOutputDirectory(): File {
@@ -207,42 +210,6 @@ class MainActivity : AppCompatActivity() {
         private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
         private const val REQUEST_CODE_PERMISSIONS = 10
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
-    }
-
-    private fun scanBarcodes(image: InputImage) {
-        val options = BarcodeScannerOptions.Builder()
-            .setBarcodeFormats(
-                Barcode.FORMAT_PDF417)
-            .build()
-
-        val scanner = BarcodeScanning.getClient(options)
-
-        val result = scanner.process(image)
-            .addOnSuccessListener { barcodes ->
-                for (barcode in barcodes) {
-                    val bounds = barcode.boundingBox
-                    val corners = barcode.cornerPoints
-                    val rawValue = barcode.rawValue
-                    // See API reference for complete list of supported types
-                    when (barcode.valueType) {
-                        Barcode.TYPE_WIFI -> {
-                            val ssid = barcode.wifi!!.ssid
-                            val password = barcode.wifi!!.password
-                            val type = barcode.wifi!!.encryptionType
-                        }
-                        Barcode.TYPE_URL -> {
-                            val title = barcode.url!!.title
-                            val url = barcode.url!!.url
-                        }
-                    }
-                }
-                // [END get_barcodes]
-                // [END_EXCLUDE]
-            }
-            .addOnFailureListener {
-                // Task failed with an exception
-                // ...
-            }
     }
 
 
